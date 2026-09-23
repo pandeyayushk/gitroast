@@ -1,15 +1,35 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { App } from "octokit";
+import { normalizePrivateKey } from "@/lib/github/private-key";
 
 function getRequiredEnv(name: string): string {
-  const value = process.env[name];
+  const value = process.env[name]?.trim();
 
   if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
+    throw new Error("GitHub App configuration is incomplete.");
   }
 
   return value;
+}
+
+function getPrivateKey(): string {
+  const environmentPrivateKey = process.env.GITHUB_PRIVATE_KEY;
+
+  if (environmentPrivateKey?.trim()) {
+    return normalizePrivateKey(environmentPrivateKey);
+  }
+
+  const privateKeyPath = getRequiredEnv("GITHUB_PRIVATE_KEY_PATH");
+
+  try {
+    return readFileSync(
+      resolve(/*turbopackIgnore: true*/ process.cwd(), privateKeyPath),
+      "utf8",
+    ).trim();
+  } catch {
+    throw new Error("GitHub App configuration is incomplete.");
+  }
 }
 
 let githubApp: App | undefined;
@@ -24,29 +44,19 @@ function getGitHubApp(): App {
   const configuredInstallationId = Number(
     getRequiredEnv("GITHUB_INSTALLATION_ID"),
   );
-  const privateKeyPath = getRequiredEnv("GITHUB_PRIVATE_KEY_PATH");
 
   if (!Number.isInteger(appId) || appId <= 0) {
-    throw new Error("GITHUB_APP_ID must be a positive integer.");
+    throw new Error("GitHub App configuration is incomplete.");
   }
 
   if (!Number.isInteger(configuredInstallationId) || configuredInstallationId <= 0) {
-    throw new Error("GITHUB_INSTALLATION_ID must be a positive integer.");
+    throw new Error("GitHub App configuration is incomplete.");
   }
 
-  let privateKey: string;
-
-  try {
-    privateKey = readFileSync(
-      resolve(/*turbopackIgnore: true*/ process.cwd(), privateKeyPath),
-      "utf8",
-    );
-  } catch {
-    throw new Error("Unable to read the configured GitHub App private key.");
-  }
+  const privateKey = getPrivateKey();
 
   if (!privateKey.trim()) {
-    throw new Error("The configured GitHub App private key is empty.");
+    throw new Error("GitHub App configuration is incomplete.");
   }
 
   installationId = configuredInstallationId;
