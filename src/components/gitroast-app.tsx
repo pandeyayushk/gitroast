@@ -36,6 +36,7 @@ export default function GitRoastApp() {
   const [data, setData] = useState<ProfileResponse | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState<"copy" | "shared" | "share-copy" | "copy-failed" | "share-failed" | null>(null);
   const languages = useMemo(() => {
     if (!data) return [];
     const entries = Object.entries(data.analysis.metrics.languageDistribution);
@@ -56,6 +57,44 @@ export default function GitRoastApp() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The profile could not be analyzed right now.");
     } finally { setIsLoading(false); }
+  }
+
+  function showShareFeedback(feedback: NonNullable<typeof shareFeedback>) {
+    setShareFeedback(feedback);
+    window.setTimeout(() => setShareFeedback(null), 2200);
+  }
+
+  async function copyRoast(roast: string) {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(roast);
+      showShareFeedback("copy");
+    } catch {
+      showShareFeedback("copy-failed");
+    }
+  }
+
+  async function shareRoast() {
+    if (!data) return;
+    const shareText = `GitRoast analyzed @${data.profile.username}.\n\n"${data.roast.roast}"\n\n${window.location.href}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `GitRoast: @${data.profile.username}`, text: shareText });
+        showShareFeedback("shared");
+      } catch {
+        showShareFeedback("share-failed");
+      }
+      return;
+    }
+
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(shareText);
+      showShareFeedback("share-copy");
+    } catch {
+      showShareFeedback("share-failed");
+    }
   }
 
   return <main className="site-shell">
@@ -83,7 +122,7 @@ export default function GitRoastApp() {
       <div className="report-columns"><section className="profile-facts" aria-labelledby="profile-facts-title"><p className="section-kicker" id="profile-facts-title">The record</p><dl><div><dt>Followers</dt><dd>{number.format(data.profile.followerCount)}</dd></div><div><dt>Following</dt><dd>{number.format(data.profile.followingCount)}</dd></div><div><dt>Primary language</dt><dd>{data.analysis.metrics.primaryLanguage ?? "Unclassified"}</dd></div><div><dt>Active / archived</dt><dd>{data.analysis.metrics.activeRepositoryCount} / {data.analysis.metrics.archivedRepositoryCount}</dd></div></dl></section>
       <section className="language-section" aria-labelledby="language-title"><p className="section-kicker" id="language-title">Language evidence</p>{languages.length ? <ul className="language-list">{languages.map(({ language, count, percent }) => <li key={language}><div><span>{language}</span><span>{count} repo{count === 1 ? "" : "s"}</span></div><i><b style={{ width: `${percent}%` }} /></i></li>)}</ul> : <p className="empty-evidence">GitHub declined to classify the languages. Very on-brand.</p>}</section></div>
       <div className="evidence-grid"><EvidenceList title="What survived inspection" items={data.analysis.strengths} empty="Nothing was formally flagged as a strength. A brave result." /><EvidenceList title="Where it gets wobbly" items={data.analysis.improvementAreas} empty="No immediate weak spots in the available public data." /></div>
-      <section className="roast-section" aria-labelledby="roast-title"><div className="roast-heading"><p className="eyebrow">Final assessment</p><p>Evidence-based slander</p></div><h2 id="roast-title">THE ROAST</h2><blockquote>{data.roast.roast}</blockquote><ul className="highlights" aria-label="Roast evidence">{data.roast.highlights.map((highlight, index) => <li key={highlight}><span>EXHIBIT {String(index + 1).padStart(2, "0")}</span>{highlight}</li>)}</ul></section>
+      <section className="roast-section" aria-labelledby="roast-title"><div className="roast-heading"><p className="eyebrow">Final assessment</p><p>Evidence-based slander</p></div><h2 id="roast-title">THE ROAST</h2><blockquote>{data.roast.roast}</blockquote><div className="share-actions" aria-label="Share this roast"><button type="button" onClick={() => copyRoast(data.roast.roast)} aria-label="Copy roast text to clipboard">{shareFeedback === "copy" ? "COPIED" : shareFeedback === "copy-failed" ? "COPY FAILED" : "COPY ROAST"}</button><button type="button" onClick={shareRoast} aria-label="Share this GitRoast result">{shareFeedback === "shared" ? "SHARED" : shareFeedback === "share-copy" ? "SHARE TEXT COPIED" : shareFeedback === "share-failed" ? "SHARE FAILED" : "SHARE"}</button></div><p className="share-status" role="status" aria-live="polite">{shareFeedback === "copy" ? "Roast copied to clipboard." : shareFeedback === "copy-failed" ? "Could not copy the roast. Select and copy the text manually." : shareFeedback === "shared" ? "Share sheet completed." : shareFeedback === "share-copy" ? "Share text copied to clipboard." : shareFeedback === "share-failed" ? "Sharing was unavailable or cancelled." : ""}</p><ul className="highlights" aria-label="Roast evidence">{data.roast.highlights.map((highlight, index) => <li key={highlight}><span>EXHIBIT {String(index + 1).padStart(2, "0")}</span>{highlight}</li>)}</ul></section>
     </article>}
     {!data && !isLoading && <footer>Public data only. Private repos remain safely out of this mess.</footer>}
   </main>;
