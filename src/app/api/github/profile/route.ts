@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GitHubUserNotFoundError } from "@/lib/github/client";
 import { getDeveloperProfile } from "@/lib/github/profile-service";
 import { parseGitHubUsername } from "@/lib/github/username";
+import { analyzeDeveloperProfile } from "@/lib/analysis/analyzer";
 
 function getSafeErrorStatus(error: unknown): number | "unknown" {
   return typeof error === "object" &&
@@ -24,8 +25,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const profile = await getDeveloperProfile(username);
+    const analysis = analyzeDeveloperProfile(profile);
 
-    return NextResponse.json({ success: true, profile });
+    return NextResponse.json({ success: true, profile, analysis });
   } catch (error) {
     if (error instanceof GitHubUserNotFoundError) {
       return NextResponse.json(
