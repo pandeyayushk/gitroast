@@ -3,6 +3,8 @@ import { GitHubUserNotFoundError } from "@/lib/github/client";
 import { getDeveloperProfile } from "@/lib/github/profile-service";
 import { parseGitHubUsername } from "@/lib/github/username";
 import { analyzeDeveloperProfile } from "@/lib/analysis/analyzer";
+import { generateRoast } from "@/lib/ai/roast";
+import { RoastError } from "@/lib/ai/domain";
 
 function getSafeErrorStatus(error: unknown): number | "unknown" {
   return typeof error === "object" &&
@@ -26,13 +28,25 @@ export async function GET(request: NextRequest) {
   try {
     const profile = await getDeveloperProfile(username);
     const analysis = analyzeDeveloperProfile(profile);
+    const roast = await generateRoast(profile, analysis);
 
-    return NextResponse.json({ success: true, profile, analysis });
+    return NextResponse.json({ success: true, profile, analysis, roast });
   } catch (error) {
     if (error instanceof GitHubUserNotFoundError) {
       return NextResponse.json(
         { success: false, error: "GitHub user not found." },
         { status: 404 },
+      );
+    }
+
+    if (error instanceof RoastError) {
+      console.error("Roast generation failed.", {
+        code: error.code,
+      });
+
+      return NextResponse.json(
+        { success: false, error: "Unable to generate roast." },
+        { status: 500 },
       );
     }
 

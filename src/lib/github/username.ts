@@ -1,4 +1,4 @@
-const GITHUB_USERNAME_PATTERN = /^[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?$/i;
+const GITHUB_USERNAME_PATTERN = /^[a-z\d](?:[a-z\d-]{0,98}[a-z\d])?$/i;
 
 export function parseGitHubUsername(value: string | null): string | null {
   const username = value?.trim();
