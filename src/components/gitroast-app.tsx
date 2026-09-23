@@ -76,7 +76,8 @@ export default function GitRoastApp() {
 
   async function shareRoast() {
     if (!data) return;
-    const shareText = `GitRoast analyzed @${data.profile.username}.\n\n"${data.roast.roast}"\n\n${window.location.href}`;
+    const canonicalUrl = `${window.location.origin}${window.location.pathname}`;
+    const shareText = `GitRoast analyzed @${data.profile.username}.\n\n"${data.roast.roast}"\n\nRoast yourself:\n${canonicalUrl}`;
 
     if (navigator.share) {
       try {
